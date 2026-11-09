@@ -60,6 +60,27 @@
   - `deployment.yaml`
   - `configmap-web.yaml`
 - Скриншот вывода `curl` или браузера
+## Решение:
+Манифест: [deployment.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/deployment.yaml)
+
+Манифест: [configmap-web.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/configmap-web.yaml)
+
+```
+ kubectl apply -f configmap-web.yaml 
+ kubectl apply -f deployment.yaml
+ kubectl get pods -l app=web-app                 
+ kubectl get configmap web-content               
+ kubectl exec deploy/web-app -c multitool -- curl -s localhost:80   
+```
+ Поды в статусе `Running` (2/2):
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/01.png)
+
+ Вывод ConfigMap:
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/02.png)
+
+ Проверка доступности страницы через curl из контейнера multitool (возвращает HTML-код страницы из ConfigMap):
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/03.png)
+
 
 ---
 ## **Задание 2: Настройка HTTPS с Secrets**  
@@ -81,6 +102,50 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   - `secret-tls.yaml`
   - `ingress-tls.yaml`
 - Скриншот вывода `curl -k`
+
+## Решение:
+Манифест: [secret-tls.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/secret-tls.yaml)
+
+Манифест: [ingress-tls.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/ingress-tls.yaml)
+
+Генерация сертификата:
+
+```
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout tls.key -out tls.crt -subj "/CN=myapp.example.com"
+```
+Создание Secret и Service:
+
+```
+kubectl create secret tls tls-secret --cert=tls.crt --key=tls.key --dry-run=client -o yaml > secret-tls.yaml
+kubectl apply -f secret-tls.yaml
+kubectl apply -f service-web.yaml
+kubectl get secret tls-secret
+
+```
+Создание Ingress:
+
+```
+kubectl apply -f ingress-tls.yaml
+kubectl get ingress
+```
+
+Проверка HTTPS-доступа:
+
+curl -k --resolve myapp.example.com:443:127.0.0.1 https://myapp.example.com
+curl -kv --resolve myapp.example.com:443:127.0.0.1 https://myapp.example.com 2>&1 | grep -E "subject|issuer"
+
+Secret типа kubernetes.io/tls:
+
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/04.png)
+
+Ingress с привязанным хостом и секретом:
+
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/05.png)
+
+Проверка через curl (вывод HTML и информация о сертификате CN=myapp.example.com):
+
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/06.png)
 
 ---
 ## **Задание 3: Настройка RBAC**  
@@ -107,6 +172,30 @@ openssl x509 -req -in developer.csr -CA {CA серт вашего кластер
   - `rolebinding-developer.yaml`
 - Команды генерации сертификатов
 - Скриншот проверки прав (`kubectl get pods --as=developer`)
+
+## Решение:
+Манифест: [role-pod-reader.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/role-pod-reader.yaml)
+
+Манифест: [rolebinding-developer.yaml](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/rolebinding-developer.yaml)
+```
+openssl genrsa -out developer.key 2048
+openssl req -new -key developer.key -out developer.csr -subj "/CN=developer"
+sudo openssl x509 -req -in developer.csr \
+  -CA /var/snap/microk8s/current/certs/ca.crt \
+  -CAkey /var/snap/microk8s/current/certs/ca.key \
+  -CAserial ./ca.srl -CAcreateserial \
+  -out developer.crt -days 365
+sudo chown $USER:$USER developer.crt ca.srl
+openssl x509 -in developer.crt -noout -subject -dates
+```
+Генерация сертификата для пользователя developer:
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/07.png)
+
+Применение Role и RoleBinding:
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/08.png)
+
+ Проверка прав:
+![kubernetes](https://github.com/valdemar-2502/Configuring-Applications-and-Managing-Access-in-Kubernetes-Homeworks/blob/main/screenshots/09.png)
 
 ---
 ## Шаблоны манифестов с учебными комментариями
